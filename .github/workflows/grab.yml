@@ -4,6 +4,8 @@ on:
     - cron: '*/10 * * * *'
   workflow_dispatch:
 concurrency: { group: grab, cancel-in-progress: false }
+permissions:
+  contents: write
 jobs:
   try:
     runs-on: ubuntu-latest
@@ -13,10 +15,17 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.12', cache: pip }
       - run: pip install -q oci==2.150.0 || pip install -q oci
-      - run: python grab_once.py
+      - run: python grab_once.py | tee out.txt
         env:
           OCI_USER: ${{ secrets.OCI_USER }}
           OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
           OCI_TENANCY: ${{ secrets.OCI_TENANCY }}
           OCI_KEY: ${{ secrets.OCI_KEY }}
           SSH_PUBKEY: ${{ secrets.SSH_PUBKEY }}
+      - name: Mark VM ready (once) so the morning check can see it
+        run: |
+          if grep -qE 'LAUNCHED|already exists' out.txt && [ ! -f STATUS.txt ]; then
+            echo "VM ready $(date -u +%Y-%m-%dT%H:%MZ)" > STATUS.txt
+            git config user.name grabber; git config user.email grabber@users.noreply.github.com
+            git add STATUS.txt && git commit -m "VM ready" && git push
+          fi
