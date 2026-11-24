@@ -1,0 +1,22 @@
+name: Grab free VM
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+concurrency: { group: grab, cancel-in-progress: false }
+jobs:
+  try:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12', cache: pip }
+      - run: pip install -q oci==2.150.0 || pip install -q oci
+      - run: python grab_once.py
+        env:
+          OCI_USER: ${{ secrets.OCI_USER }}
+          OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+          OCI_TENANCY: ${{ secrets.OCI_TENANCY }}
+          OCI_KEY: ${{ secrets.OCI_KEY }}
+          SSH_PUBKEY: ${{ secrets.SSH_PUBKEY }}
